@@ -199,7 +199,11 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 	//Opening Write Files
 	intermediate = fopen("intermediate.txt","w");
 	symbolTable = fopen("symbolTable.txt","w");
-	if(source == NULL || opcode == NULL || intermediate == NULL || symbolTable == NULL) printf("One of the Files did not opened\n"); //Checking If Files Opened Correctly
+	if(source == NULL || opcode == NULL || intermediate == NULL || symbolTable == NULL) 
+	{
+		printf("File did not opened Correctly\n"); //Checking If Files Opened Correctly
+		return;
+	}
 
 	//token = strtok(line, " \t");
 	
@@ -304,7 +308,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				{
 					if(!isdigit(tok.operand[i]))
 					{
-					       	_ERROR = INVALID_OPERAND;
+					    _ERROR = INVALID_OPERAND;
 						break;
 					}
 				}
@@ -319,7 +323,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			if(strcmp(token, "BYTE") == 0 || strcmp(token, "START") == 0 || strcmp(token, "WORD") == 0 || strcmp(token, "RESB") == 0 || strcmp(token, "RESW") == 0) _ERROR = INVALID_LABEL;	
 			if(strcmp(token, "RSUB") == 0)
 			{
-				fprintf(intermediate, "%d\t\t %s\t %d\n", addressCounter, token, _ERROR);
+				fprintf(intermediate, "%d\t\t %s\t\t %d\n", addressCounter, token, _ERROR);
 				continue;
 			}
 
@@ -344,15 +348,14 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				else if(strcmp(tok.mnemonic, "RESW") == 0)  _Error = false;
 			}
 //			strcpy(tok.operand, token);
-			printf("This is the operand: \n", tok.operand);
+//			printf("This is the operand: \n", tok.operand);
 			//Write to File
-			fprintf(intermediate, "%d\t\t %s\t %s  \n", addressCounter, tok.mnemonic, tok.operand);
+			fprintf(intermediate, "%d\t\t %s\t %s\t %d  \n", addressCounter, tok.mnemonic, tok.operand, _ERROR);
 		}
 	}
 
 
 	//printf(" LABEL: %s\n MNEMONIC: %s\n OPERAND: %s\n", tok.label, tok.mnemonic, tok.operand);
-	printf("Succesfully went throught the file\n");
 
 	fclose(intermediate);
 	fclose(source);
