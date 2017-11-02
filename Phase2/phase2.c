@@ -228,29 +228,18 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 
 		if(labelFound)
 		{
+
 			strcpy(tok.label, token); //Sets label
 			token = strtok(NULL, " \t\r\n\v\f"); // gets next word on the line
 
 			if(labelCounter < 500)
 			{
-				if(labelCounter > 0) //Loop throught the Symbol Tables looking for DUPLICATES
-				{
-					char str[250];
-					//Get a line
-					//START OF THE LOOP
-
-					//while(fgets(str, 250, symbolTable));
-					//{
-						//Break up the line and get the second line
-					//	pastToken = strtok(str, " \t\n");
-					//	pastToken = strtok(NULL, " \t\n"); //Gets the symbol
-					//	if(_ERROR != NOERROR) break;
-						//if(strcmp(pastToken, tok.label) == 0)
-						//	_ERROR = INVALID_LABEL;
-					//}//End of the loop
-				}
-				labelCounter++;
+				labelCounter++;	
 			}
+
+			labelCounter++; //
+
+
 			strcpy(tok.mnemonic, token); //sets mnemonic
 			
 			token = strtok(NULL, " \t\r\n\v\f");
@@ -328,7 +317,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 		else
 		{
 			if(strcmp(token, "BYTE") == 0 || strcmp(token, "START") == 0 || strcmp(token, "WORD") == 0 || strcmp(token, "RESB") == 0 || strcmp(token, "RESW") == 0) _ERROR = INVALID_LABEL;	
-			if(strcmp(token, "RSUB"))
+			if(strcmp(token, "RSUB") == 0)
 			{
 				fprintf(intermediate, "%d\t\t %s\t %d\n", addressCounter, token, _ERROR);
 				continue;
@@ -336,12 +325,16 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 
 			strcpy(tok.mnemonic, token);
 			token = strtok(NULL, " \t\r\n\v\f");
+			strcpy(tok.operand, token);
 			if(_Error && _ERROR != NOERROR)
 			{
 				for(int x = 0; x < NUMELEM(Ops); ++x)
 				{
 					if(strcmp(Ops[x].OP, tok.mnemonic) == 0) //If its the same
+					{
 						_Error = false;
+						break;
+					}
 				}
 				if(strcmp(tok.mnemonic, "START") == 0) _Error = false;
 				else if(strcmp(tok.mnemonic, "END") == 0) _Error = false;
@@ -350,8 +343,8 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				else if(strcmp(tok.mnemonic, "RESB") == 0)  _Error = false;
 				else if(strcmp(tok.mnemonic, "RESW") == 0)  _Error = false;
 			}
-			strcpy(tok.operand, token);
-			
+//			strcpy(tok.operand, token);
+			printf("This is the operand: \n", tok.operand);
 			//Write to File
 			fprintf(intermediate, "%d\t\t %s\t %s  \n", addressCounter, tok.mnemonic, tok.operand);
 		}
