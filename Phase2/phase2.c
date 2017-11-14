@@ -187,7 +187,7 @@ void assemble(char *p1)
 
 void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 {
-	typedef enum { NOERROR, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND } ERRORS;
+	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND } ERRORS;
 //	FILE *source, *intermediate, *opcode, *symbolTable; // Creats the Files pointer
 	char line[500]; // String for each line in the Files "p1"
 	char *token; 	// Created for STRTOK
@@ -318,7 +318,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			fprintf(intermediate, "%d\t %s\t %s\t %s\t %d\n", addressCounter, tok.label, tok.mnemonic, tok.operand, _ERROR);
 			fprintf(symbolTable, "%d\t %s\n", addressCounter, tok.label);
 		}
-		else
+		else // NO LABEL
 		{
 			if(strcmp(token, "BYTE") == 0 || strcmp(token, "START") == 0 || strcmp(token, "WORD") == 0 || strcmp(token, "RESB") == 0 || strcmp(token, "RESW") == 0) _ERROR = INVALID_LABEL;	
 			if(strcmp(token, "RSUB") == 0)
@@ -347,6 +347,29 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				else if(strcmp(tok.mnemonic, "RESB") == 0)  _Error = false;
 				else if(strcmp(tok.mnemonic, "RESW") == 0)  _Error = false;
 			}
+
+			if(!_Error)
+				_ERROR = INVALID_MNEMONIC;
+
+			//Check for illegal operands
+
+			//Things to check
+
+			//1. C'Char'
+			//2. X'Char'
+
+			if(strcmp(tok.operand, "BYTE") == 0 && _ERROR == NOERROR)
+			{
+				//Check for opening ' and closing '
+				if(tok.operand[1] != '\'' || tok.operand[strlen(tok.operand) - 1] != '\'') _ERROR = INVALID_OPERAND;
+			}
+
+			//If It doesnt not start with ' or does not end with '
+
+				
+
+
+			//End of Checking illegal operands
 //			strcpy(tok.operand, token);
 //			printf("This is the operand: \n", tok.operand);
 			//Write to File
