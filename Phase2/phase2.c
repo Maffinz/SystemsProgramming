@@ -375,6 +375,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			//Write to File
 			fprintf(intermediate, "%d\t\t %s\t %s\t %d  \n", addressCounter, tok.mnemonic, tok.operand, _ERROR);
 		}
+		//Call ASSEMBLER HERE....
 	}
 
 
