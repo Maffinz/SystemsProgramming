@@ -17,10 +17,22 @@ void assemble(FILE *sTable, FILE *inter); //Assemble SIC files
 
 int decToHexa(int n);
 
+void addLabel(); //Adds label to Struct
+//void addAddress(int); //Add Address of label to struct
+bool labelIsFound();
+
 void err(); //show Error 
 void hlp(); //Show help
 
 FILE *source, *intermediate, *opcode, *symbolTable; //FILES
+
+//Labels
+typedef struct{
+	char label[10];
+	int address;
+}LABELS;
+LABELS lab[500];
+int labelsCounter = 0; //Keep track of how many label are in the system
 
 typedef struct {
 	char *label;
@@ -222,6 +234,26 @@ int getcmd(char *c, int *n) //Return a value to the corresponding Command
 	return -2;
 }
 
+void addLabel(int locCounter)
+{
+	if(labelsCounter >= 500) return; //Stop adding more
+
+	static int labelCounter = 0;
+	strcpy(lab[labelCounter].label, tok.label);
+	lab[labelCounter++].address = locCounter;
+	labelsCounter++;
+}
+
+bool labelIsFound()
+{
+	for(int i = 0; i < labelsCounter; i++)
+	{
+		if(strcmp(lab[i].label, tok.label) == 0) return true;
+	}
+	
+	return false;
+}
+
 void assemble(FILE *sTable, FILE *inter)
 {
 
@@ -229,7 +261,7 @@ void assemble(FILE *sTable, FILE *inter)
 
 void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 {
-	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND } ERRORS;
+	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND, DUP_LABEL, MIS_START, MISS_OPERAND, TO_MANY_LABELS } ERRORS;
 //	FILE *source, *intermediate, *opcode, *symbolTable; // Creats the Files pointer
 	char line[500]; // String for each line in the Files "p1"
 	char *token; 	// Created for STRTOK
@@ -277,15 +309,14 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			int resMem = 0;
 			strcpy(tok.label, token); //Sets label
 			token = strtok(NULL, " \t\r\n\v\f"); // gets next word on the line
-
-			if(labelCounter < 500)
+			
+			if(labelsCounter > 0)
 			{
-				labelCounter++;	
+				if(labelsCounter >= 500) _ERROR = TO_MANY_LABELS;
+				if(strcmp(tok.label, "START") == 0) _ERROR = MIS_START;
+				if(labelIsFound() && _ERROR == NOERROR)
+					_ERROR = DUP_LABEL;
 			}
-
-			labelCounter++; //
-
-
 			strcpy(tok.mnemonic, token); //sets mnemonic
 			
 			token = strtok(NULL, " \t\r\n\v\f");
@@ -386,7 +417,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				if(tok.operand[1] != '\'' ||  tok.operand[strlen(tok.operand)-1] != '\'') _ERROR = INVALID_OPERAND; //Missing ' at the start and the end '
 			}
 			//if(strcmp(tok.mnemonic, "END") == 0 && strcmp(tok.operand, symbols[1]) > 0 || strcmp(tok.operand, symbols[1]) < 0 && _ERROR == NOERROR) _ERROR = INVALID_OPERAND;
-			if(strcmp(tok.mnemonic, "START") == 0)
+			if(strcmp(tok.mnemonic, "START") == 0 || strcmp(tok.mnemonic, "RESB") == 0 || strcmp(tok.mnemonic, "RESW") == 0)
 			{
 				for(int i = 0; i < strlen(tok.operand); ++i)
 				{
@@ -401,7 +432,9 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			//PRINTING TO THE INTERMEDIATE
 			fprintf(intermediate, "%d\t %s\t %s\t %s\t %d\n", addressCounter, tok.label, tok.mnemonic, tok.operand, _ERROR);
 			fprintf(symbolTable, "%d\t %s\n", addressCounter, tok.label);
-
+			//ADD TO LABEL STRUCT
+			addLabel(addressCounter);
+			//=======================
 			//Increment Address Location
 			if(strcmp(tok.mnemonic, "BYTE") == 0) addressCounter += resMem;
 			else if(strcmp(tok.mnemonic, "RESB") == 0) addressCounter += resMem;
@@ -424,8 +457,13 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 
 			strcpy(tok.mnemonic, token);
 			token = strtok(NULL, " \t\r\n\v\f");
-			strcpy(tok.operand, token);
-			if(_Error && _ERROR != NOERROR)
+			if(token == NULL)
+			{
+				 _ERROR = MISS_OPERAND;
+				strcpy(tok.operand, " ");	
+			}
+			else strcpy(tok.operand, token);
+			if(_Error && _ERROR == NOERROR)
 			{
 				for(int x = 0; x < NUMELEM(Ops); ++x)
 				{
@@ -443,7 +481,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				else if(strcmp(tok.mnemonic, "RESW") == 0)  _Error = false;
 			}
 
-			if(!_Error)
+			if(_Error)
 				_ERROR = INVALID_MNEMONIC;
 
 			//Check for illegal operands
