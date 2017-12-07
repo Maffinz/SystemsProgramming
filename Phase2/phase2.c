@@ -261,7 +261,7 @@ void assemble(FILE *sTable, FILE *inter)
 
 void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 {
-	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND, DUP_LABEL, MIS_START, MISS_OPERAND, TO_MANY_LABELS } ERRORS;
+	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND, DUP_LABEL, MIS_START, MISS_OPERAND, TO_MANY_LABELS, PROG_LONG } ERRORS;
 //	FILE *source, *intermediate, *opcode, *symbolTable; // Creats the Files pointer
 	char line[500]; // String for each line in the Files "p1"
 	char *token; 	// Created for STRTOK
@@ -312,7 +312,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			
 			if(labelsCounter > 0)
 			{
-				if(labelsCounter >= 500) _ERROR = TO_MANY_LABELS;
+				if(labelsCounter > 500) _ERROR = TO_MANY_LABELS;
 				if(strcmp(tok.label, "START") == 0) _ERROR = MIS_START;
 				if(labelIsFound() && _ERROR == NOERROR)
 					_ERROR = DUP_LABEL;
