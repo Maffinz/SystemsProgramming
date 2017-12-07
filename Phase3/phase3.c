@@ -13,14 +13,32 @@ void loadFile(char *,char *); //Load file (Not Implemented yet)
 void exe(char *); //Execute laoded file
 void db(); //Opens in debug mode
 void dmp(char *, char *); //Dump file
-void assemble(FILE *sTable, FILE *inter); //Assemble SIC files
-
+void assemble(int); //Assemble SIC files
+char* itoa(int value, char* result, int base);
 int decToHexa(int n);
+
+void addLabel(); //Adds label to Struct
+//void addAddress(int); //Add Address of label to struct
+bool labelIsFound();
+
+bool LookForLabel(char *);
+
+int GetMemLoc(char *, FILE *); //Gets Memmory Location of Address
+short GetOpcode(char *);
 
 void err(); //show Error 
 void hlp(); //Show help
 
 FILE *source, *intermediate, *opcode, *symbolTable; //FILES
+
+//Labels
+typedef struct{
+	char label[10];
+	int address;
+}LABELS;
+
+LABELS lab[500];
+int labelsCounter = 0; //Keep track of how many label are in the system
 
 typedef struct {
 	char *label;
@@ -36,12 +54,12 @@ typedef struct {
 } OPCODE;
 
 //Short should be hexadecimal
-OPCODE Ops[] = {{"ADD", 18},   {"AND", 58},    {"COMP", 28},   {"DIV", 24},
-                {"J", 3},     {"JEQ", 3},    {"JGT", 3},    {"JLT", 3},
-                {"JSUB", 3},   {"LDA", 3},    {"LDCH", 3},   {"LDL", 3},
-                {"LDX", 3},   {"MUL", 3},    {"OR", 3},    {"RD", 3},
-                {"RSUB", 3},   {"STA", 3},     {"STCH", 3},   {"STL", 3},
-                {"STX", 3}, {"SUB", 3}, {"TD", 3}, {"TIX", 3}, {"WD", 3}};
+OPCODE Ops[] = {{"ADD", 0x18},   {"AND", 0x58},    {"COMP", 0x28},   {"DIV", 0x24},
+                {"J", 0x3C},     {"JEQ", 0x30},    {"JGT", 0x34},    {"JLT", 0x38},
+                {"JSUB", 0x48},   {"LDA", 0x00},    {"LDCH", 0x50},   {"LDL", 0x08},
+                {"LDX", 0x04},   {"MUL", 0x20},    {"OR", 0x44},    {"RD", 0xD8},
+                {"RSUB", 0x4C},   {"STA", 0x0C},     {"STCH", 0x54},   {"STL", 0x14},
+                {"STX", 0x10}, {"SUB", 0x1C}, {"TD", 0xE0}, {"TIX", 0x2C}, {"WD", 0xDC}};
 
 int main()
 {
@@ -197,6 +215,51 @@ void split(char *str, char *c, char *p1, char *p2, int *n) //Splits Line into wo
 	*n = count; //Set N to count, count being the number of words counted + 1 -.-
 }
 
+int GetMemLoc(char *tk, FILE *symb)
+{
+	char *token;
+	char line[500];
+	int addr;
+	//Open File
+	symbolTable = fopen("symbolTable.txt", "r");
+
+	//printf("=========\n");
+	//Loop over File
+	while(fgets(line, 500, symbolTable))
+	{
+		line[strcspn(line, "\n")] = '\0'; // Remove New Line and Add null
+		//Memory Address
+		token = strtok(line, " \t");
+		addr = (int)strtol(token, NULL, 10);
+
+		//Get Symbol
+		token = strtok(NULL, " \t");
+		
+		//printf("%s v %s\n", token, tk);
+		
+		if(strcmp(token, tk) == 0)
+		{
+			fclose(symbolTable);
+			//printf("=========\n");
+			return addr;
+		}
+	}
+	fclose(symbolTable);
+	//printf("=========\n");
+	return 1;
+	//fclose(symbolTable);
+
+}
+short GetOpcode(char *s)
+{
+	for(int x = 0; x < NUMELEM(Ops); ++x)
+	{
+		//printf("Inside GetOpCode: %x", Ops[x].FORM);//(int)strtol(Ops[x].OP, NULL, 16));
+		if(strcmp(Ops[x].OP, s) == 0) //If its the same
+			return Ops[x].FORM;
+	}
+}
+
 int getcmd(char *c, int *n) //Return a value to the corresponding Command
 {
 	if(strcmp(c, "load") == 0){
@@ -222,14 +285,280 @@ int getcmd(char *c, int *n) //Return a value to the corresponding Command
 	return -2;
 }
 
-void assemble(FILE *sTable, FILE *inter)
+void addLabel(int locCounter)
 {
+	if(labelsCounter >= 500) return; //Stop adding more
 
+	static int labelCounter = 0;
+	strcpy(lab[labelCounter].label, tok.label);
+	lab[labelCounter++].address = locCounter;
+	labelsCounter++;
+}
+
+bool labelIsFound()
+{
+	for(int i = 0; i < labelsCounter; i++)
+	{
+		if(strcmp(lab[i].label, tok.label) == 0) return true;
+	}
+	
+	return false;
+}
+
+bool LookForLabel(char *label)
+{
+	//Loop over Labels
+	for(int i = 0; i <= 500; i++)
+	{
+		if(strcmp(label, lab[i].label) == 0) return true; //Label Found
+	}
+
+	//Label Not Found
+	return false;
+}
+
+void assemble(int progSize)
+{
+	//printf("Assemble Function\n");
+	//File Declared
+	FILE *objectFile, *listingFile;
+	//Opening Files
+	objectFile = fopen("objectFile.txt", "w");
+	listingFile = fopen("listingFile.txt", "w");
+	intermediate = fopen("intermediate.txt", "r");
+	symbolTable = fopen	("symbolTable.txt", "r");
+	//Local Struct
+	typedef struct{
+		int address;
+		char *label;
+		char *mnemonic;
+		char *operand;
+	} ASSEMBLE;
+	ASSEMBLE ObjFile;
+
+	//Allocating Memory
+	ObjFile.label = (char *)malloc(6);
+	ObjFile.mnemonic = (char *)malloc(6);
+	ObjFile.operand = (char *)malloc(6);
+	//Done Allocating Memory
+
+	//Declare Variables
+	char line[500];
+	char *token; 
+	bool _FoundLabel;
+
+	char *machineCode = (char*) malloc(100); // 60
+	char *incommingMachineCode = (char *) malloc(100);
+	char *sizeOfMachineCode = (char *) malloc(5); // 2
+	char *tMnemonic = (char *) malloc(10);
+	char *tOperand = (char *) malloc(10);
+	int addre;
+	int objAddress;
+	memset(incommingMachineCode, '\0', 100);
+	memset(machineCode, '\0', 100);
+	// Loop over the Source "AGAIN"
+	while(fgets(line, 500, intermediate))
+	{
+		//memset(machineCode, '\0', 100);
+		//memset(incommingMachineCode, '\0', 100)
+
+		//Get Address and Store
+		token = strtok(line, " \t");
+		ObjFile.address = (int)strtol(token, NULL, 10);
+		//Done Storing Address
+
+		//Get Next Token 
+		token = strtok(NULL, " \t");
+		//Look For Label
+		if(LookForLabel(token)) //If Label HAs been Found 
+		{
+			//Store Label
+			strcpy(ObjFile.label, token);
+			//Get Next Token
+			token = strtok(NULL, " \t");
+		}
+		//Regardless, Store Mnemonic
+		strcpy(ObjFile.mnemonic, token);
+
+
+		if(strcmp(ObjFile.mnemonic, "RESB") == 0 || strcmp(ObjFile.mnemonic, "RESW") == 0) // If RSUB
+		{
+			printf("%s Encountered\n", ObjFile.mnemonic);
+			// Print and Reset machineCode and incomming MachineCode
+			if(strlen(machineCode) > 0)
+			{
+				fprintf(objectFile, "T%d %x %s\n", objAddress, strlen(machineCode), machineCode);
+				memset(machineCode, '\0', 100);
+				objAddress = addre;
+			}
+		}
+		//Done Storing Data...
+		else if(strcmp(ObjFile.mnemonic, "START") == 0) //First Line
+		{	
+			//Get Operand
+			token = strtok(NULL, " \t");
+			//Print to File
+			fprintf(objectFile, "H%s_%06d%05X\n", ObjFile.label, (int)strtol(token, NULL, 10), progSize);
+		}
+		else if(strcmp(ObjFile.mnemonic, "END") == 0)
+		{
+			//End of file
+
+			//Get Token
+			token = strtok(NULL, " \t");
+			int addr = GetMemLoc(token, symbolTable);
+
+			//Print End of File
+			fprintf(objectFile, "E%06d", addr);
+			return;
+		}
+		else
+		{
+			//Gets Operand
+			token = strtok(NULL, " \t");
+			strcpy(ObjFile.operand, token);
+
+			if(strlen(incommingMachineCode) > 0)
+			{
+				objAddress = addre;
+				//There is Something inide incommingMachineCode Get Rid of it
+				strcat(machineCode, incommingMachineCode);
+			}
+
+			if(strlen(incommingMachineCode) <= 0)
+			{
+				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
+				{
+
+				}
+				else if(strcmp(ObjFile.mnemonic, "WORD") == 0)
+				{
+
+				}
+				else if(strcmp(ObjFile.mnemonic, "RSUB") == 0)
+				{
+
+				}
+				else
+				{
+					addre = GetMemLoc(ObjFile.operand, symbolTable);
+					//printf("addre: %d\n", addre);
+
+					itoa(GetOpcode(ObjFile.mnemonic), tMnemonic, 16);
+					strcat(incommingMachineCode, tMnemonic);
+
+					itoa(addre, tOperand, 10);
+					strcat(incommingMachineCode, tOperand);
+				}
+				
+			}
+
+			printf("%d  %x  %s\n\n", objAddress , strlen(machineCode), machineCode);
+
+			
+
+			//Set Mnemonic Translated
+			//Set Address
+			//Translate Mnemonic
+			//strcpy(tMnemonic, ObjFile.mnemonic);
+
+			//Gets incommingMachineCode
+			
+			//incommingMachineCode[strcspn(incommingMachineCode, "\n")] = '\0';
+
+			
+
+			//printf("tOPerand: %s\n", tOperand);
+			//printf("GetOpcode: %x\n", GetOpcode(ObjFile.mnemonic));
+			//printf("ObjFile.mnemonic: %s\n", ObjFile.mnemonic);
+			//printf("machineCode: %s %d\n", machineCode, strlen(machineCode));
+			//printf("incommingMachineCode: %s \n\n", incommingMachineCode);
+			//printf("Size of machineCode: %d\n", strlen(machineCode));
+			//printf("Size of incommingMachineCode: %d\n", strlen(incommingMachineCode));
+			//printf("machineCode + incommingMachineCode: %d\n\n", strlen(machineCode)+strlen(incommingMachineCode));
+			//strcpy(); //Copies Mnemonic Translated Version
+			//strcpy(); //Copies Operand Address
+			//The Rest of the Code
+
+			if(strlen(machineCode) == 0)
+			{
+				strcat(machineCode, incommingMachineCode);
+				//printf("(inside machine leng == 0) machineCode: %s \n", machineCode);
+			}
+			else if(strlen(machineCode) + strlen(incommingMachineCode) > 60)
+			{
+				printf("\n\n Sizeof machineCode: %d\n Sizeof incommingMachineCode: %d\n\n", strlen(machineCode), strlen(incommingMachineCode));
+				printf("\n\n Space left: %d \n\n", (strlen(machineCode) - strlen(incommingMachineCode)) );
+				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
+				{
+
+				}
+				else if(strcmp(ObjFile.mnemonic, "WORD") == 0)
+				{
+
+				}
+				else if(strcmp(ObjFile.mnemonic, "RSUB") == 0)
+				{
+
+				}
+				else
+				{
+					//printf("Hello\n\n");
+					fprintf(objectFile, "T%d %d %s\n", addre, strlen(machineCode), machineCode);
+					printf("Passed File\n");
+					memset(machineCode, '\0', 100);
+				}
+				//strcat(machineCode, incommingMachineCode);
+			}
+			else //Still space 
+			{
+				//Cat
+				strcat(machineCode, incommingMachineCode);
+				//Clear incommingMachineCode
+				memset(incommingMachineCode, '\0', 100);
+
+			}			//2 Hex = 1 Byte
+			// 30 Bytes or 60 Hex in one Line Hence the 1E ??
+
+			//T (Memory Location)(Size of Machine Code)(Machine Code)
+			//fprintf(objectFile, "T%s%x%s", GetMemLoc(token, symbolTable), machineCode);
+		}
+
+	}
+	fclose(objectFile);
+	fclose(listingFile);
+	fclose(intermediate);
+	fclose(symbolTable);
+}
+
+char* itoa(int value, char* result, int base)
+{
+		// check that the base if valid
+		if (base < 2 || base > 36) { *result = '\0'; return result; }
+
+		char* ptr = result, *ptr1 = result, tmp_char;
+		int tmp_value;
+
+		do {
+			tmp_value = value;
+			value /= base;
+			*ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+		} while ( value );
+
+		// Apply negative sign
+		if (tmp_value < 0) *ptr++ = '-';
+		*ptr-- = '\0';
+		while(ptr1 < ptr) {
+			tmp_char = *ptr;
+			*ptr--= *ptr1;
+			*ptr1++ = tmp_char;
+		}
+		return result;
 }
 
 void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 {
-	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND } ERRORS;
+	typedef enum { NOERROR = 0, INVALID_MNEMONIC, INVALID_LABEL, INVALID_OPERAND, DUP_LABEL, MIS_START, MISS_OPERAND, TO_MANY_LABELS, PROG_LONG } ERRORS;
 //	FILE *source, *intermediate, *opcode, *symbolTable; // Creats the Files pointer
 	char line[500]; // String for each line in the Files "p1"
 	char *token; 	// Created for STRTOK
@@ -237,7 +566,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 	const char *symbols[500]; //Keep track of labels
 	//Opening READ only FILES
 	source = fopen(p1, "r");
-	opcode = fopen("opcode.txt","r");
+	opcode = fopen("opcode.txt","w");
 	//Opening Write Files
 	intermediate = fopen("intermediate.txt","w");
 	symbolTable = fopen("symbolTable.txt","w");
@@ -260,6 +589,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 	token = line;	
 	int labelCounter = 0; //Keep track of labelss
 	//Starts Reading from "p1"
+	bool _ERRORS = false;
 	while(fgets(line, 500, source))
 	{
 		bool labelFound = true, _Error = true;
@@ -277,15 +607,14 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			int resMem = 0;
 			strcpy(tok.label, token); //Sets label
 			token = strtok(NULL, " \t\r\n\v\f"); // gets next word on the line
-
-			if(labelCounter < 500)
+			
+			if(labelsCounter > 0)
 			{
-				labelCounter++;	
+				if(labelsCounter > 500) _ERROR = TO_MANY_LABELS;
+				if(strcmp(tok.label, "START") == 0) _ERROR = MIS_START;
+				if(labelIsFound() && _ERROR == NOERROR)
+					_ERROR = DUP_LABEL;
 			}
-
-			labelCounter++; //
-
-
 			strcpy(tok.mnemonic, token); //sets mnemonic
 			
 			token = strtok(NULL, " \t\r\n\v\f");
@@ -386,7 +715,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				if(tok.operand[1] != '\'' ||  tok.operand[strlen(tok.operand)-1] != '\'') _ERROR = INVALID_OPERAND; //Missing ' at the start and the end '
 			}
 			//if(strcmp(tok.mnemonic, "END") == 0 && strcmp(tok.operand, symbols[1]) > 0 || strcmp(tok.operand, symbols[1]) < 0 && _ERROR == NOERROR) _ERROR = INVALID_OPERAND;
-			if(strcmp(tok.mnemonic, "START") == 0)
+			if(strcmp(tok.mnemonic, "START") == 0 || strcmp(tok.mnemonic, "RESB") == 0 || strcmp(tok.mnemonic, "RESW") == 0)
 			{
 				for(int i = 0; i < strlen(tok.operand); ++i)
 				{
@@ -401,7 +730,9 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			//PRINTING TO THE INTERMEDIATE
 			fprintf(intermediate, "%d\t %s\t %s\t %s\t %d\n", addressCounter, tok.label, tok.mnemonic, tok.operand, _ERROR);
 			fprintf(symbolTable, "%d\t %s\n", addressCounter, tok.label);
-
+			//ADD TO LABEL STRUCT
+			addLabel(addressCounter);
+			//=======================
 			//Increment Address Location
 			if(strcmp(tok.mnemonic, "BYTE") == 0) addressCounter += resMem;
 			else if(strcmp(tok.mnemonic, "RESB") == 0) addressCounter += resMem;
@@ -409,7 +740,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			else if(strcmp(tok.mnemonic, "WORD") == 0) addressCounter += resMem;
 			else if(strcmp(tok.mnemonic, "START") > 0 || strcmp(tok.mnemonic, "START") < 0) addressCounter += 3;
 
-
+			if(_Error > 0) _ERRORS = true;
 		}
 		else // NO LABEL
 		{
@@ -424,8 +755,13 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 
 			strcpy(tok.mnemonic, token);
 			token = strtok(NULL, " \t\r\n\v\f");
-			strcpy(tok.operand, token);
-			if(_Error && _ERROR != NOERROR)
+			if(token == NULL)
+			{
+				 _ERROR = MISS_OPERAND;
+				strcpy(tok.operand, " ");	
+			}
+			else strcpy(tok.operand, token);
+			if(_Error && _ERROR == NOERROR)
 			{
 				for(int x = 0; x < NUMELEM(Ops); ++x)
 				{
@@ -443,7 +779,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 				else if(strcmp(tok.mnemonic, "RESW") == 0)  _Error = false;
 			}
 
-			if(!_Error)
+			if(_Error)
 				_ERROR = INVALID_MNEMONIC;
 
 			//Check for illegal operands
@@ -471,19 +807,20 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			//addressCounter += 3;
 			fprintf(intermediate, "%d\t\t %s\t %s\t %d \n", addressCounter, tok.mnemonic, tok.operand, _ERROR);
 			addressCounter += 3;
+			if(_Error > 0) _ERRORS = true;
 		}
 		//Call ASSEMBLER HERE....
-		assemble(symbolTable, intermediate);
+		
 
 	}
-
-
+	
 	//printf(" LABEL: %s\n MNEMONIC: %s\n OPERAND: %s\n", tok.label, tok.mnemonic, tok.operand);
-
 	fclose(intermediate);
 	fclose(source);
 	fclose(opcode);
 	fclose(symbolTable);
+	if(!_ERRORS)
+		assemble(addressCounter - startingAddress);
 
 }
 void exe(char *buff) //Executes Loaded File
