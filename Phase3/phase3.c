@@ -13,11 +13,11 @@ void loadFile(char *,char *); //Load file (Not Implemented yet)
 void exe(char *); //Execute laoded file
 void db(); //Opens in debug mode
 void dmp(char *, char *); //Dump file
-void assemble(int); //Assemble SIC files
+void assemble(int, bool); //Assemble SIC files
 char* itoa(int value, char* result, int base);
 int decToHexa(int n);
 
-void addLabel(); //Adds label to Struct
+void addLabel(int); //Adds label to Struct
 //void addAddress(int); //Add Address of label to struct
 bool labelIsFound();
 
@@ -317,7 +317,7 @@ bool LookForLabel(char *label)
 	return false;
 }
 
-void assemble(int progSize)
+void assemble(int progSize, bool anyErrors)
 {
 	//printf("Assemble Function\n");
 	//File Declared
@@ -429,7 +429,14 @@ void assemble(int progSize)
 			{
 				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
 				{
+					if(ObjFile.mnemonic[0] == 'C')
+					{
 
+					}
+					else
+					{
+
+					}
 				}
 				else if(strcmp(ObjFile.mnemonic, "WORD") == 0)
 				{
@@ -590,6 +597,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 	int labelCounter = 0; //Keep track of labelss
 	//Starts Reading from "p1"
 	bool _ERRORS = false;
+	bool anyErrors = false;
 	while(fgets(line, 500, source))
 	{
 		bool labelFound = true, _Error = true;
@@ -809,7 +817,11 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 			addressCounter += 3;
 			if(_Error > 0) _ERRORS = true;
 		}
-		//Call ASSEMBLER HERE....
+		
+		//Outside of If / else
+
+		if(_Error > 0) //Any Error
+			anyErrors = true;
 		
 
 	}
@@ -819,8 +831,7 @@ void loadFile(char *p1, char *buff) //Loads a files ITS ASSEMBLE :-(
 	fclose(source);
 	fclose(opcode);
 	fclose(symbolTable);
-	if(!_ERRORS)
-		assemble(addressCounter - startingAddress);
+	assemble(addressCounter - startingAddress, anyErrors);
 
 }
 void exe(char *buff) //Executes Loaded File
