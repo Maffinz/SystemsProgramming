@@ -154,7 +154,7 @@ int decToHexa(int n)
         n = n/16;
     }
     //Reverse
-    int len = strlen(hexaDeciNum) - 1;
+    int len = (int)strlen(hexaDeciNum) - 1;
     char temp[100];
     int tempIndex = 0;
     while(len >= 0)
@@ -333,6 +333,7 @@ void assemble(int progSize, bool anyErrors)
 		char *label;
 		char *mnemonic;
 		char *operand;
+		int err;
 	} ASSEMBLE;
 	ASSEMBLE ObjFile;
 
@@ -383,11 +384,11 @@ void assemble(int progSize, bool anyErrors)
 
 		if(strcmp(ObjFile.mnemonic, "RESB") == 0 || strcmp(ObjFile.mnemonic, "RESW") == 0) // If RSUB
 		{
-			printf("%s Encountered\n", ObjFile.mnemonic);
+			//printf("%s Encountered\n", ObjFile.mnemonic);
 			// Print and Reset machineCode and incomming MachineCode
 			if(strlen(machineCode) > 0)
 			{
-				fprintf(objectFile, "T%d %x %s\n", objAddress, strlen(machineCode), machineCode);
+				fprintf(objectFile, "T%02x %x %s\n", objAddress, strlen(machineCode) / 2, machineCode);
 				memset(machineCode, '\0', 100);
 				objAddress = addre;
 			}
@@ -399,6 +400,11 @@ void assemble(int progSize, bool anyErrors)
 			token = strtok(NULL, " \t");
 			//Print to File
 			fprintf(objectFile, "H%s_%06d%05X\n", ObjFile.label, (int)strtol(token, NULL, 10), progSize);
+
+			//Get Error Code
+			token = strtok(NULL, " \t");
+			//Store
+			ObjFile.err = atoi(token);
 		}
 		else if(strcmp(ObjFile.mnemonic, "END") == 0)
 		{
@@ -417,33 +423,166 @@ void assemble(int progSize, bool anyErrors)
 			//Gets Operand
 			token = strtok(NULL, " \t");
 			strcpy(ObjFile.operand, token);
+			if(strcmp(ObjFile.mnemonic, "RSUB") != 0)
+			{
+				token = strtok(NULL, " \t");				
+			}
+			token[strcspn(token, "\n")] = '\0';
+			ObjFile.err = atoi(token);
+			//Operand is Save
 
 			if(strlen(incommingMachineCode) > 0)
 			{
-				objAddress = addre;
-				//There is Something inide incommingMachineCode Get Rid of it
-				strcat(machineCode, incommingMachineCode);
+				
+				//Checks For BYE
+				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
+				{
+					//Create a String
+					char *byte = (char *) malloc(7);
+					//Set the String to 0 Expect the last NULL
+					memset(byte, '0', 6);
+					
+					if(ObjFile.operand[0] == 'C')
+					{
+						//Get What it's inside of the Single ' '
+						int cIndex = 2;
+
+						while(ObjFile.operand[cIndex] != '\'')
+						{
+							//Make a variable that will store the character
+							char *var = (char *)malloc(2);
+							//set the first index to the character found
+							var[0] = ObjFile.operand[cIndex];
+							var[1] = '\0';
+							//Convert Letter to Interger
+							int hex = (int)var[0];
+							//Create a string that will concat everyhing
+							char *cat = (char *)malloc(6);
+							//Conver to String
+							cat = itoa(hex, cat, 16);
+							//Concat
+							strcat(byte, cat);
+							//Increments
+							cIndex++;
+						}
+
+						//Concat To incomming Machine code
+						strcat(incommingMachineCode, byte);
+					}
+					else if(ObjFile.operand[0] == 'X') //This will be an X
+					{
+						int cIndex = 2;
+						int hIndex = 0;
+						char *hex = (char *) malloc(10);
+						memset(hex, '0', 6);
+
+						while(ObjFile.operand[cIndex] != '\'')
+						{
+							//Copy The hexaDeciimals into the Array
+							hex[hIndex] = ObjFile.operand[cIndex];
+							//Increment
+							hIndex++;
+							cIndex++;
+						}
+						//Change Hex to Actual Hex
+						int WORD = (int)strtol(hex, NULL, 16);
+						char *_word = (char *) malloc(10);
+						//memset(_word, '0', 6);
+
+						itoa(WORD, _word, 16);
+
+						strcat(incommingMachineCode, _word);
+					}
+				}
+
+				else
+				{
+					objAddress = addre;
+					//There is Something inide incommingMachineCode Get Rid of it
+					strcat(machineCode, incommingMachineCode);
+				}
+				
 			}
 
 			if(strlen(incommingMachineCode) <= 0)
 			{
+				//printf("incommingMachineCode <= 0: %s \n", ObjFile.mnemonic);
 				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
 				{
-					if(ObjFile.mnemonic[0] == 'C')
+					printf("BYTE %s \n", ObjFile.operand);
+					//Create a String
+					char *byte = (char *) malloc(7);
+					//Set the String to 0 Expect the last NULL
+					memset(byte, '0', 6);
+					
+					if(ObjFile.operand[0] == 'C')
 					{
+						//Get What it's inside of the Single ' '
+						int cIndex = 2;
 
+						//printf("C - Index1 %c \n C - Index2 %c\n", ObjFile.mnemonic[1], ObjFile.mnemonic[2]);
+
+						while(ObjFile.operand[cIndex] != '\'')
+						{
+							printf("C Working %d\n", cIndex);
+							//Make a variable that will store the character
+							char *var = (char *)malloc(2);
+							//set the first index to the character found
+							var[0] = ObjFile.operand[cIndex];
+							var[1] = '\0';
+							//Convert Letter to Interger
+							int hex = (int)var[0];
+							//Create a string that will concat everyhing
+							char *cat = (char *)malloc(6);
+							//Conver to String
+							cat = itoa(hex, cat, 16);
+							//Concat
+							strcat(byte, cat);
+							//Increments
+							cIndex++;
+						}
+
+						//Concat To incomming Machine code
+						strcat(incommingMachineCode, byte);
 					}
-					else
+					else if(ObjFile.mnemonic[1] == '\'') //This will be an X
 					{
+						int cIndex = 2;
+						int hIndex = 0;
+						char *hex = (char *) malloc(10);
+						memset(hex, '0', 6);
 
+						while(ObjFile.operand[cIndex] != '\'')
+						{
+							printf("Working %d\n", hIndex);
+							//Copy The hexaDeciimals into the Array
+							hex[hIndex] = ObjFile.operand[cIndex];
+							//Increment
+							hIndex++;
+							cIndex++;
+						}
+						//Change Hex to Actual Hex
+						int WORD = (int)strtol(hex, NULL, 16);
+						char *_word = (char *) malloc(10);
+						memset(_word, '0', 6);
+
+						itoa(WORD, _word, 16);
+
+						strcat(incommingMachineCode, _word);
 					}
 				}
 				else if(strcmp(ObjFile.mnemonic, "WORD") == 0)
 				{
+					//Change to int
+					//int word = atoi(ObjFile.operand);
+					char *_word = (char *) malloc(6);
+					memset(_word, '0', 5);
 
-				}
-				else if(strcmp(ObjFile.mnemonic, "RSUB") == 0)
-				{
+					strcpy(_word, ObjFile.operand);
+
+					printf("_word %s\n", _word);
+
+					strcat(incommingMachineCode, _word);
 
 				}
 				else
@@ -460,69 +599,51 @@ void assemble(int progSize, bool anyErrors)
 				
 			}
 
-			printf("%d  %x  %s\n\n", objAddress , strlen(machineCode), machineCode);
+
+			// READ FROM SOURCE "WRITE TO LISTING FILE"
+			{
+				
+			}
+			//END OF READING FROM SOURCE
+
 
 			
-
-			//Set Mnemonic Translated
-			//Set Address
-			//Translate Mnemonic
-			//strcpy(tMnemonic, ObjFile.mnemonic);
-
-			//Gets incommingMachineCode
-			
-			//incommingMachineCode[strcspn(incommingMachineCode, "\n")] = '\0';
-
-			
-
-			//printf("tOPerand: %s\n", tOperand);
-			//printf("GetOpcode: %x\n", GetOpcode(ObjFile.mnemonic));
-			//printf("ObjFile.mnemonic: %s\n", ObjFile.mnemonic);
-			//printf("machineCode: %s %d\n", machineCode, strlen(machineCode));
-			//printf("incommingMachineCode: %s \n\n", incommingMachineCode);
-			//printf("Size of machineCode: %d\n", strlen(machineCode));
-			//printf("Size of incommingMachineCode: %d\n", strlen(incommingMachineCode));
-			//printf("machineCode + incommingMachineCode: %d\n\n", strlen(machineCode)+strlen(incommingMachineCode));
-			//strcpy(); //Copies Mnemonic Translated Version
-			//strcpy(); //Copies Operand Address
-			//The Rest of the Code
-
 			if(strlen(machineCode) == 0)
 			{
 				strcat(machineCode, incommingMachineCode);
-				//printf("(inside machine leng == 0) machineCode: %s \n", machineCode);
 			}
 			else if(strlen(machineCode) + strlen(incommingMachineCode) > 60)
 			{
-				printf("\n\n Sizeof machineCode: %d\n Sizeof incommingMachineCode: %d\n\n", strlen(machineCode), strlen(incommingMachineCode));
-				printf("\n\n Space left: %d \n\n", (strlen(machineCode) - strlen(incommingMachineCode)) );
+				fprintf(objectFile, "T%02x %x %s\n", addre, strlen(machineCode), machineCode);
+				memset(machineCode, '\0', 100);
+			}
+			else //Still space 
+			{
 				if(strcmp(ObjFile.mnemonic, "BYTE") == 0)
 				{
 
 				}
 				else if(strcmp(ObjFile.mnemonic, "WORD") == 0)
 				{
+					int add = 3;
 
-				}
-				else if(strcmp(ObjFile.mnemonic, "RSUB") == 0)
-				{
+					char *cat = (char *) malloc(6);
+					memset(cat, '0', 5);
 
+					char *this = (char *) malloc(7);
+					itoa(add, this, 10);
+
+					strcat(incommingMachineCode, this);
+					
 				}
 				else
 				{
-					//printf("Hello\n\n");
-					fprintf(objectFile, "T%d %d %s\n", addre, strlen(machineCode), machineCode);
-					printf("Passed File\n");
-					memset(machineCode, '\0', 100);
+					//Cat
+					strcat(machineCode, incommingMachineCode);
+					//Clear incommingMachineCode
+					memset(incommingMachineCode, '\0', 100);
 				}
-				//strcat(machineCode, incommingMachineCode);
-			}
-			else //Still space 
-			{
-				//Cat
-				strcat(machineCode, incommingMachineCode);
-				//Clear incommingMachineCode
-				memset(incommingMachineCode, '\0', 100);
+				
 
 			}			//2 Hex = 1 Byte
 			// 30 Bytes or 60 Hex in one Line Hence the 1E ??
@@ -536,6 +657,16 @@ void assemble(int progSize, bool anyErrors)
 	fclose(listingFile);
 	fclose(intermediate);
 	fclose(symbolTable);
+
+	printf("Files closed");
+
+	if(anyErrors)
+	{
+		if(remove("objectFile.txt") == 0)
+			printf("Program Has Errors.\n");
+	}
+
+
 }
 
 char* itoa(int value, char* result, int base)
