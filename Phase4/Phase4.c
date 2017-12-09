@@ -3,17 +3,10 @@
 #include "stdlib.h"
 #include "ctype.h"
 
-/*
-//Phase2-3
-void assemCommand(char *);
-void passOne(FILE *);
-void passTwo(FILE *);
-*/
-
-
 //Phase 4
 #include "stdbool.h"
 #include "sicengine.c"
+
 void loadCommand(char *);
 void dumpCommand(char *, char *);
 void executeCommand();
@@ -29,7 +22,7 @@ void loadCommand(char *par1){
 	int length = strlen(par1);
 
 	if(length == 0){
-		printf("Load command needs filename.\n");
+		printf("Load command needs <filename>.\n");
 	}
 	else{
 		//open object file
@@ -211,15 +204,15 @@ while (strcmp(a, "exit") != 0) {
 		
 	}
 	else if (strcmp(command, "help") == 0){
-		printf("******COMMANDS******** \n");
-		printf("load filename: will call the load function to load the specified file. \n");
-		printf("execute: will call the computer simulation program to exxecute the program that was previously loaded in memory. \n");
-		printf("debug: will allow you to execute in debug mode. \n");
-		printf("dump start end: will call the dump function, passing the values of start and end. Start and end will be hexadecimal values. \n");
-		printf("help: will print out a list of availabe commands. \n");
-		printf("assemble filename: will assemble an SIC assembly language program into a load module and store it in a file. \n");
-		printf("directory: will list the files stored in the current directory. \n");
-		printf("exit: will exit from the simulator. \n");
+		printf("----------Commands----------\n");
+		printf("load <filename>: Will Load the file. \n");
+		printf("execute: Execute The File Previously Loaded. \n");
+		printf("debug: Execute in Debug Mode. \n");
+		printf("dump <start> <end>: Dislpay Memory Locations From <start>(hex) and <end>(hex). \n");
+		printf("help: Print out Commands Available. \n");
+		printf("assemble <filename>: Assemble SIC File. \n");
+		printf("directory: List all Files / Folders on directory. \n");
+		printf("exit: Exit The simulation. \n");
 	}
 	else if (strcmp(command, "assemble") == 0){
 		//assemCommand(pm1);
